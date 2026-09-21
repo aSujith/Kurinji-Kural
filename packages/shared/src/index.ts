@@ -66,38 +66,17 @@ export type AgentType =
   | "BUYER_MATCHING"
   | "SUPPORT";
 
-// --- Tamil Lexicon for Deterministic Yes/No ---
+// --- Tamil, Tanglish & English Yes/No Lexicon ---
 export const TAMIL_YES_LEXICON = [
-  "ஆம்",
-  "ஆமாம்",
-  "சரி",
-  "சரிதான்",
-  "உறுதி",
-  "உறுதிப்படுத்து",
-  "சேமி",
-  "போடு",
-  "அனுப்பு",
-  "சரி செய்",
-  "ஓகே",
-  "yes",
-  "correct",
-  "confirm",
-  "save",
-  "ok",
+  "ஆம்", "ஆமாம்", "சரி", "சரிதான்", "உறுதி", "உறுதிப்படுத்து", "சேமி", "போடு", "அனுப்பு", "சரி செய்", "ஓகே",
+  "aam", "aamaam", "sari", "sarithan", "urudhi", "seri", "semi", "kodu",
+  "yes", "correct", "confirm", "save", "ok", "sure", "done"
 ];
 
 export const TAMIL_NO_LEXICON = [
-  "இல்லை",
-  "வேண்டாம்",
-  "வேணாம்",
-  "தவறு",
-  "மாற்று",
-  "ரத்து செய்",
-  "நிறுத்து",
-  "no",
-  "cancel",
-  "wrong",
-  "stop",
+  "இல்லை", "வேண்டாம்", "வேணாம்", "தவறு", "மாற்று", "ரத்து செய்", "நிறுத்து",
+  "illai", "illa", "vendam", "venaam", "thavaru", "maathu", "rathu",
+  "no", "cancel", "wrong", "stop", "nope"
 ];
 
 // --- Domain Entity Interfaces ---

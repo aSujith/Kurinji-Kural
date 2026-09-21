@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, MicOff, Volume2, X, Check, AlertCircle, Sparkles, Send, Info } from "lucide-react";
+import { Mic, MicOff, Volume2, X, Check, AlertCircle, Sparkles, Send, Info, Radio, Play } from "lucide-react";
 import { api, VoiceTurnResult } from "../services/api";
 
 interface VoiceProps {
@@ -16,129 +16,160 @@ export const VoiceAssistantBar: React.FC<VoiceProps> = ({ isOpen, onClose, onPro
   const [turnResult, setTurnResult] = useState<VoiceTurnResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string>("");
-  const [micError, setMicError] = useState<string | null>(null);
-  const [isSupported, setIsSupported] = useState(true);
+  const [micVolume, setMicVolume] = useState<number>(0);
+  const [micStatusMessage, setMicStatusMessage] = useState<string>("Ready to listen");
 
   const recognitionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // Check browser support on mount
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setIsSupported(false);
-      setMicError("Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge for live microphone speech.");
-    }
-  }, []);
-
-  // Text to Speech playback
-  const speakText = (text: string) => {
+  // Text-To-Speech Playback
+  const speakText = (text: string, lang = "en-US") => {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
+      utterance.lang = lang;
       utterance.rate = 0.95;
       window.speechSynthesis.speak(utterance);
     }
   };
 
+  // Real-time Audio Visualizer using Web Audio API
+  const startAudioMeter = async (stream: MediaStream) => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioCtx;
+      const analyser = audioCtx.createAnalyser();
+      analyserRef.current = analyser;
+      analyser.fftSize = 64;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const updateVolume = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        setMicVolume(Math.min(100, Math.round((avg / 128) * 100)));
+        animFrameRef.current = requestAnimationFrame(updateVolume);
+      };
+
+      updateVolume();
+    } catch (e) {
+      console.error("AudioContext metering error:", e);
+    }
+  };
+
+  const stopAudioMeter = () => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setMicVolume(0);
+  };
+
   const startListening = async () => {
-    setMicError(null);
+    setMicStatusMessage("Requesting microphone access...");
     setInterimTranscript("");
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setMicError("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
-      return;
-    }
-
     try {
-      // First explicitly verify mic access
+      let stream: MediaStream | null = null;
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        startAudioMeter(stream);
       }
 
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = language;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognitionRef.current = recognition;
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = language;
 
-      recognition.onstart = () => {
-        setIsListening(true);
-        setMicError(null);
-      };
+        recognition.onstart = () => {
+          setIsListening(true);
+          setMicStatusMessage("Microphone active! Speak now in Tamil or English...");
+        };
 
-      recognition.onresult = (event: any) => {
-        let interim = "";
-        let final = "";
+        recognition.onresult = (event: any) => {
+          let interim = "";
+          let final = "";
 
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            final += event.results[i][0].transcript;
-          } else {
-            interim += event.results[i][0].transcript;
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              final += event.results[i][0].transcript;
+            } else {
+              interim += event.results[i][0].transcript;
+            }
           }
-        }
 
-        if (interim) {
-          setInterimTranscript(interim);
-        }
+          if (interim) {
+            setInterimTranscript(interim);
+          }
 
-        if (final) {
-          setTranscript(final);
-          setInterimTranscript("");
-          // Automatically trigger turn when speech ends
-          handleSend(final);
-        }
-      };
+          if (final) {
+            setTranscript(final);
+            setInterimTranscript("");
+            handleSend(final);
+          }
+        };
 
-      recognition.onerror = (event: any) => {
-        console.error("Speech recognition error:", event.error);
-        setIsListening(false);
+        recognition.onerror = (event: any) => {
+          console.error("Speech recognition event error:", event.error);
+          setIsListening(false);
+          stopAudioMeter();
 
-        if (event.error === "not-allowed" || event.error === "permission-denied") {
-          setMicError("Microphone permission denied. Please click the lock or camera icon in your browser URL bar and allow microphone access.");
-        } else if (event.error === "no-speech") {
-          setMicError("No speech detected. Please speak closer to your microphone or try again.");
-        } else if (event.error === "audio-capture") {
-          setMicError("No microphone was detected. Please verify your microphone is plugged in and enabled in Windows Settings.");
-        } else if (event.error === "network") {
-          setMicError("Network error with speech recognition service. Please check your internet connection.");
-        } else {
-          setMicError(`Speech recognition issue: ${event.error}. You can also type or use the test buttons below.`);
-        }
-      };
+          if (event.error === "no-speech") {
+            setMicStatusMessage("No words detected. Try speaking closer or use the instant voice buttons below.");
+          } else if (event.error === "not-allowed") {
+            setMicStatusMessage("Microphone permission was not allowed. Please enable mic access in your browser address bar.");
+          } else {
+            setMicStatusMessage(`Browser speech notice: ${event.error}. You can also type or use instant voice cards.`);
+          }
+        };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
+        recognition.onend = () => {
+          setIsListening(false);
+          stopAudioMeter();
+        };
 
-      recognition.start();
+        recognition.start();
+      } else {
+        // Fallback for browsers without Web Speech API
+        setIsListening(true);
+        setMicStatusMessage("Listening with Web Audio. (Browser does not have native speech engine; use quick cards or text)");
+      }
     } catch (err: any) {
-      console.error("Microphone getUserMedia error:", err);
+      console.error("Microphone error:", err);
       setIsListening(false);
-      setMicError("Could not access microphone. Please ensure microphone permissions are granted in browser settings.");
+      stopAudioMeter();
+      setMicStatusMessage("Microphone could not be accessed. Please ensure microphone is allowed in browser settings.");
     }
   };
 
   const stopListening = () => {
     if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        console.error(e);
-      }
+      try { recognitionRef.current.stop(); } catch (e) {}
     }
     setIsListening(false);
-  };
-
-  const toggleListening = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
+    stopAudioMeter();
+    setMicStatusMessage("Listening stopped");
   };
 
   const handleSend = async (textToSend?: string) => {
@@ -161,6 +192,14 @@ export const VoiceAssistantBar: React.FC<VoiceProps> = ({ isOpen, onClose, onPro
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const triggerVoicePreset = (tamilAudioSpoken: string, queryText: string) => {
+    setTranscript(queryText);
+    // Play Tamil audio prompt aloud
+    speakText(tamilAudioSpoken, "ta-IN");
+    // Send to agent orchestrator
+    handleSend(queryText);
   };
 
   const handleConfirmDecision = async (decision: "YES" | "NO") => {
@@ -186,16 +225,16 @@ export const VoiceAssistantBar: React.FC<VoiceProps> = ({ isOpen, onClose, onPro
 
   return (
     <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white w-full max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white w-full max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="bg-gradient-to-r from-green-800 to-green-900 text-white p-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-green-800 to-green-950 text-white p-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-green-300" />
             </div>
             <div>
               <h3 className="font-bold text-lg">Voice Multi-Agent Assistant</h3>
-              <p className="text-xs text-green-200">Tamil & English Speech | Automatic English Inventory Updates</p>
+              <p className="text-xs text-green-200">Speaks Tamil & English | Converts to English Inventory</p>
             </div>
           </div>
           <button
@@ -207,140 +246,141 @@ export const VoiceAssistantBar: React.FC<VoiceProps> = ({ isOpen, onClose, onPro
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-5 overflow-y-auto">
-          {/* Microphone Diagnostics / Alert Banner */}
-          {micError && (
-            <div className="bg-red-50 border border-red-300 rounded-xl p-3 flex items-start space-x-2 text-xs text-red-800 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold block">Microphone Notice:</span>
-                <span>{micError}</span>
-              </div>
-            </div>
-          )}
-
-          {!isSupported && (
-            <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-start space-x-2 text-xs text-amber-900">
-              <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold block">Browser Compatibility:</span>
-                <span>Web Speech API works natively in Google Chrome and Microsoft Edge. You can also type or use the quick buttons below.</span>
-              </div>
-            </div>
-          )}
-
-          {/* Language selector & Presets */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                1. Select Language You Want to Speak
-              </span>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setLanguage("ta-IN")}
-                  className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
-                    language === "ta-IN" ? "bg-green-700 text-white font-bold" : "bg-stone-100 text-stone-600"
-                  }`}
-                >
-                  தமிழ் (Tamil)
-                </button>
-                <button
-                  onClick={() => setLanguage("en-IN")}
-                  className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
-                    language === "en-IN" ? "bg-green-700 text-white font-bold" : "bg-stone-100 text-stone-600"
-                  }`}
-                >
-                  English
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Testing Presets */}
-            <div className="space-y-1.5 pt-1">
-              <span className="text-xs text-stone-500 font-medium">Quick Speech Simulation (One-Click Testing):</span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => { setTranscript("20 கிலோ மலைத்தேன் விலை 500 ரூபாய்"); handleSend("20 கிலோ மலைத்தேன் விலை 500 ரூபாய்"); }}
-                  className="text-xs bg-stone-100 hover:bg-green-50 hover:text-green-800 border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-700 transition"
-                >
-                  🎤 "20 கிலோ மலைத்தேன் விலை 500"
-                </button>
-                <button
-                  onClick={() => { setTranscript("மலை மஞ்சள் 50 கிலோ விலை 170"); handleSend("மலை மஞ்சள் 50 கிலோ விலை 170"); }}
-                  className="text-xs bg-stone-100 hover:bg-green-50 hover:text-green-800 border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-700 transition"
-                >
-                  🎤 "மலை மஞ்சள் 50 கிலோ விலை 170"
-                </button>
-                <button
-                  onClick={() => { setTranscript("மஞ்சள் சந்தை விலை என்ன?"); handleSend("மஞ்சள் சந்தை விலை என்ன?"); }}
-                  className="text-xs bg-stone-100 hover:bg-green-50 hover:text-green-800 border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-700 transition"
-                >
-                  📊 "மஞ்சள் சந்தை விலை என்ன?"
-                </button>
-                <button
-                  onClick={() => { setTranscript("வாங்குபவர்கள் யார் இருக்கிறார்கள்?"); handleSend("வாங்குபவர்கள் யார் இருக்கிறார்கள்?"); }}
-                  className="text-xs bg-stone-100 hover:bg-green-50 hover:text-green-800 border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-700 transition"
-                >
-                  🤝 "வாங்குபவர்கள் யார்?"
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Voice Input & Active Waveform Visualizer */}
-          <div className="bg-stone-50 p-6 rounded-2xl border border-stone-200 flex flex-col items-center justify-center space-y-4">
+        <div className="p-6 space-y-6 overflow-y-auto">
+          {/* Microphone Live Control & Audio Meter */}
+          <div className="bg-stone-50 p-6 rounded-2xl border border-stone-200 flex flex-col items-center justify-center space-y-4 shadow-inner">
             <button
-              onClick={toggleListening}
-              className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl transition-all transform active:scale-95 ${
+              onClick={() => isListening ? stopListening() : startListening()}
+              className={`w-24 h-24 rounded-full flex items-center justify-center shadow-xl transition-all transform active:scale-95 ${
                 isListening
                   ? "bg-red-500 text-white animate-pulse ring-8 ring-red-200 scale-105"
                   : "bg-green-700 hover:bg-green-800 text-white"
               }`}
             >
-              {isListening ? <MicOff className="w-8 h-8" /> : <Mic className="w-8 h-8" />}
+              {isListening ? <MicOff className="w-10 h-10" /> : <Mic className="w-10 h-10" />}
             </button>
 
-            {/* Audio Wave Visualizer Animation */}
-            {isListening && (
-              <div className="flex items-center space-x-1.5 h-6">
-                <span className="w-1.5 h-3 bg-green-600 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                <span className="w-1.5 h-5 bg-green-600 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                <span className="w-1.5 h-6 bg-green-600 rounded-full animate-bounce"></span>
-                <span className="w-1.5 h-4 bg-green-600 rounded-full animate-bounce [animation-delay:-0.2s]"></span>
-                <span className="w-1.5 h-2 bg-green-600 rounded-full animate-bounce [animation-delay:-0.4s]"></span>
+            {/* Real Web Audio Volume Level Indicator */}
+            <div className="w-full max-w-xs space-y-1">
+              <div className="flex justify-between text-[11px] font-bold text-stone-500 uppercase">
+                <span>Mic Audio Signal</span>
+                <span className={micVolume > 15 ? "text-green-600" : "text-stone-400"}>
+                  {micVolume > 0 ? `${micVolume}% dB` : "Idle"}
+                </span>
+              </div>
+              <div className="w-full h-2.5 bg-stone-200 rounded-full overflow-hidden flex">
+                <div
+                  className={`h-full transition-all duration-75 rounded-full ${
+                    micVolume > 50 ? "bg-amber-500" : micVolume > 15 ? "bg-green-600" : "bg-stone-300"
+                  }`}
+                  style={{ width: `${Math.max(5, micVolume)}%` }}
+                />
+              </div>
+            </div>
+
+            <p className="text-xs font-semibold text-stone-600 text-center max-w-md">
+              {micStatusMessage}
+            </p>
+
+            {interimTranscript && (
+              <div className="bg-white border border-green-300 px-3 py-1.5 rounded-lg text-xs text-green-800 font-semibold animate-pulse">
+                Hearing: "{interimTranscript}"
               </div>
             )}
 
-            <div className="text-center">
-              <p className="text-xs font-bold text-stone-700">
-                {isListening
-                  ? `Listening in ${language === "ta-IN" ? "தமிழ் (Tamil)" : "English"}... Speak now!`
-                  : "Tap microphone to speak or type in Tamil/English below"}
-              </p>
-              {interimTranscript && (
-                <p className="text-xs text-green-700 font-semibold italic mt-1">
-                  Hearing: "{interimTranscript}"
-                </p>
-              )}
-            </div>
-
-            {/* Text Input Fallback / Live View */}
-            <div className="w-full flex space-x-2">
+            {/* Text input with language toggle */}
+            <div className="w-full flex space-x-2 pt-2">
               <input
                 type="text"
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Spoken words appear here (or type in Tamil/English)..."
+                placeholder="Spoken words appear here (or type in Tamil/Tanglish/English)..."
                 className="flex-1 bg-white border border-stone-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
               />
               <button
                 onClick={() => handleSend()}
                 disabled={isLoading || !transcript.trim()}
-                className="bg-green-700 disabled:opacity-50 hover:bg-green-800 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-1"
+                className="bg-green-700 disabled:opacity-50 hover:bg-green-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-1"
               >
                 <Send className="w-4 h-4" />
-                <span>Process</span>
+                <span>Submit</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Instant Voice Testing Cards (Spoken Voice Demonstration) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center space-x-1">
+                <Radio className="w-3.5 h-3.5 text-green-600 animate-pulse" />
+                <span>Instant Voice Triggers (Plays Tamil Audio & Updates English Inventory)</span>
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                onClick={() => triggerVoicePreset("இருபது கிலோ மலைத்தேன் விலை ஐந்நூறு ரூபாய்", "20 கிலோ மலைத்தேன் விலை 500 ரூபாய் சேர்க்க")}
+                className="text-left bg-white hover:bg-green-50/80 border border-stone-200 hover:border-green-300 p-3 rounded-xl transition group shadow-sm flex items-center justify-between"
+              >
+                <div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-sm">🍯</span>
+                    <span className="text-xs font-bold text-stone-900 group-hover:text-green-800">
+                      "20 கிலோ மலைத்தேன் விலை 500"
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-stone-500 block mt-0.5">Adds 20 kg Wild Rock Honey @ ₹500</span>
+                </div>
+                <Play className="w-4 h-4 text-stone-400 group-hover:text-green-700" />
+              </button>
+
+              <button
+                onClick={() => triggerVoicePreset("ஐம்பது கிலோ மலை மஞ்சள் விலை நூற்று எழுபது ரூபாய்", "மலை மஞ்சள் 50 கிலோ விலை 170")}
+                className="text-left bg-white hover:bg-green-50/80 border border-stone-200 hover:border-green-300 p-3 rounded-xl transition group shadow-sm flex items-center justify-between"
+              >
+                <div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-sm">🌿</span>
+                    <span className="text-xs font-bold text-stone-900 group-hover:text-green-800">
+                      "மலை மஞ்சள் 50 கிலோ விலை 170"
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-stone-500 block mt-0.5">Adds 50 kg Organic Hill Turmeric @ ₹170</span>
+                </div>
+                <Play className="w-4 h-4 text-stone-400 group-hover:text-green-700" />
+              </button>
+
+              <button
+                onClick={() => triggerVoicePreset("மஞ்சள் சந்தை விலை என்ன", "மஞ்சள் சந்தை விலை என்ன?")}
+                className="text-left bg-white hover:bg-green-50/80 border border-stone-200 hover:border-green-300 p-3 rounded-xl transition group shadow-sm flex items-center justify-between"
+              >
+                <div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-sm">📊</span>
+                    <span className="text-xs font-bold text-stone-900 group-hover:text-green-800">
+                      "மஞ்சள் சந்தை விலை என்ன?"
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-stone-500 block mt-0.5">Mandi Intelligence for Turmeric</span>
+                </div>
+                <Play className="w-4 h-4 text-stone-400 group-hover:text-green-700" />
+              </button>
+
+              <button
+                onClick={() => triggerVoicePreset("வாங்குபவர்கள் யார் இருக்கிறார்கள்", "வாங்குபவர்கள் யார் இருக்கிறார்கள்?")}
+                className="text-left bg-white hover:bg-green-50/80 border border-stone-200 hover:border-green-300 p-3 rounded-xl transition group shadow-sm flex items-center justify-between"
+              >
+                <div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-sm">🤝</span>
+                    <span className="text-xs font-bold text-stone-900 group-hover:text-green-800">
+                      "வாங்குபவர்கள் யார்?"
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-stone-500 block mt-0.5">Find Active Wholesale Buyers</span>
+                </div>
+                <Play className="w-4 h-4 text-stone-400 group-hover:text-green-700" />
               </button>
             </div>
           </div>

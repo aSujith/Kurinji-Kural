@@ -22,43 +22,43 @@ const COMMODITY_LIST: CommodityInfo[] = [
     name: "Wild Rock Honey",
     category: "HONEY_BEE_PRODUCTS",
     defaultPrice: 480,
-    matchKeys: ["honey", "தேன்", "மலைத்தேன்", "கொம்புத்தேன்"],
+    matchKeys: ["honey", "thean", "then", "malai then", "malai thean", "kombu then", "தேன்", "மலைத்தேன்", "கொம்புத்தேன்"],
   },
   {
     name: "Organic Hill Turmeric",
     category: "SPICES_CONDIMENTS",
     defaultPrice: 160,
-    matchKeys: ["turmeric", "மஞ்சள்", "மலை மஞ்சள்"],
+    matchKeys: ["turmeric", "manjal", "malai manjal", "nattu manjal", "மஞ்சள்", "மலை மஞ்சள்"],
   },
   {
     name: "Wild Malabar Black Pepper",
     category: "SPICES_CONDIMENTS",
     defaultPrice: 580,
-    matchKeys: ["pepper", "மிளகு", "கருமிளகு", "காட்டு மிளகு"],
+    matchKeys: ["pepper", "milagu", "kattu milagu", "karumilagu", "black pepper", "மிளகு", "கருமிளகு", "காட்டு மிளகு"],
   },
   {
     name: "Foxtail Millet Grains",
     category: "MILLETS_GRAINS",
     defaultPrice: 55,
-    matchKeys: ["millet", "தினை", "தினை அரிசி"],
+    matchKeys: ["millet", "thinai", "thinai arisi", "foxtail", "தினை", "தினை அரிசி"],
   },
   {
     name: "Little Millet Grains",
     category: "MILLETS_GRAINS",
     defaultPrice: 65,
-    matchKeys: ["little millet", "சாமை", "சாமை அரிசி"],
+    matchKeys: ["little millet", "samai", "saamai", "சாமை", "சாமை அரிசி"],
   },
   {
     name: "Wild Haritaki / Kadukkai",
     category: "MEDICINAL_PLANTS",
     defaultPrice: 120,
-    matchKeys: ["kadukkai", "haritaki", "கடுக்காய்"],
+    matchKeys: ["kadukkai", "kadukai", "haritaki", "கடுக்காய்"],
   },
   {
     name: "Wild Forest Tamarind",
     category: "FOREST_PRODUCE",
     defaultPrice: 140,
-    matchKeys: ["tamarind", "புளி", "காட்டுப்புளி"],
+    matchKeys: ["tamarind", "puli", "kattu puli", "புளி", "காட்டுப்புளி"],
   },
 ];
 
@@ -74,7 +74,8 @@ function findCommodity(text: string): CommodityInfo | null {
 
 function parseNumbersAndPrice(text: string): { quantity: number; price: number | null } {
   const lower = text.toLowerCase();
-  const tamilNumMap: { [key: string]: number } = {
+  const phoneticNumMap: { [key: string]: number } = {
+    // Tamil script
     "ஒன்று": 1, "ஒன்னு": 1, "ஒரு": 1,
     "இரண்டு": 2, "ரெண்டு": 2,
     "மூன்று": 3, "மூணு": 3,
@@ -82,18 +83,19 @@ function parseNumbersAndPrice(text: string): { quantity: number; price: number |
     "ஐந்து": 5, "அஞ்சு": 5,
     "பத்து": 10,
     "பதினைந்து": 15,
-    "இருபது": 20,
-    "இருபத்தி ஐந்து": 25,
-    "முப்பது": 30,
-    "நாற்பது": 40,
-    "ஐம்பது": 50,
-    "நூறு": 100,
-    "இருநூறு": 200,
-    "ஐந்நூறு": 500,
+    "இருபது": 20, "இருபத்தி ஐந்து": 25,
+    "முப்பது": 30, "நாற்பது": 40, "ஐம்பது": 50,
+    "நூறு": 100, "இருநூறு": 200, "ஐந்நூறு": 500,
+
+    // Tanglish / Phonetics
+    "oru": 1, "rendu": 2, "moonu": 3, "naalu": 4, "anju": 5,
+    "pathu": 10, "pathinenju": 15, "irubadhu": 20, "irubathu": 20,
+    "irubathanju": 25, "muppadhu": 30, "naappadhu": 40, "ambadhu": 50, "aimbadhu": 50,
+    "nooru": 100, "ainooru": 500, "aayiram": 1000,
   };
 
   let qty = 20;
-  for (const [w, val] of Object.entries(tamilNumMap)) {
+  for (const [w, val] of Object.entries(phoneticNumMap)) {
     if (lower.includes(w)) {
       qty = val;
       break;
@@ -107,7 +109,7 @@ function parseNumbersAndPrice(text: string): { quantity: number; price: number |
     price = parseFloat(matches[1]);
   } else if (matches && matches.length === 1) {
     const n = parseFloat(matches[0]);
-    if (lower.includes("kg") || lower.includes("கிலோ")) {
+    if (lower.includes("kg") || lower.includes("கிலோ") || lower.includes("kilo")) {
       qty = n;
     } else {
       price = n;
@@ -214,6 +216,8 @@ export class AgentOrchestrator {
       lower.includes("விலை என்ன") ||
       lower.includes("விலை சொல்லு") ||
       lower.includes("சந்தை விலை") ||
+      lower.includes("vilai enna") ||
+      lower.includes("velai enna") ||
       (lower.includes("price") && (lower.includes("what") || lower.includes("how much") || lower.includes("current")));
 
     // Intent A: Market Intelligence Check (Rule R4: Never fabricate prices)
@@ -249,15 +253,19 @@ export class AgentOrchestrator {
       };
     }
 
-    // Intent B: Add / Sell Product (Voice / Text in Tamil or English -> English Inventory)
+    // Intent B: Add / Sell Product (Voice / Text in Tamil, Tanglish, or English -> English Inventory)
     const isAddProduct =
       lower.includes("add") ||
       lower.includes("sell") ||
       lower.includes("சேர்க்க") ||
       lower.includes("போடு") ||
       lower.includes("விற்பனை") ||
+      lower.includes("serka") ||
+      lower.includes("podu") ||
+      lower.includes("virpanai") ||
       lower.includes("kg") ||
       lower.includes("கிலோ") ||
+      lower.includes("kilo") ||
       lower.includes("quintal") ||
       findCommodity(transcript) !== null;
 
@@ -322,7 +330,9 @@ export class AgentOrchestrator {
       lower.includes("demand") ||
       lower.includes("வாங்குபவர்") ||
       lower.includes("கொள்முதல்") ||
-      lower.includes("வியாபாரி")
+      lower.includes("வியாபாரி") ||
+      lower.includes("vaangubavar") ||
+      lower.includes("kolmudhal")
     ) {
       const requirements = store.buyerRequirements.filter((r) => r.status === "OPEN");
       const sample = requirements[0];
@@ -342,7 +352,8 @@ export class AgentOrchestrator {
       lower.includes("promote") ||
       lower.includes("pitch") ||
       lower.includes("marketing") ||
-      lower.includes("விளம்பரம்")
+      lower.includes("விளம்பரம்") ||
+      lower.includes("vilambaram")
     ) {
       const topProduct = store.products[0];
       return {
@@ -362,7 +373,7 @@ export class AgentOrchestrator {
       state: "RESPONSE_SPOKEN",
       detectedIntent: "SUPPORT",
       agent: "SUPPORT",
-      spokenResponseEnglish: "Welcome to Kurinji Kural! You can speak or type in Tamil or English to add inventory (e.g., '20 kg wild honey price 500'), check mandi prices, or find wholesale buyers. Everything is translated and maintained in English.",
+      spokenResponseEnglish: "Welcome to Kurinji Kural! You can speak or type in Tamil, Tanglish, or English (e.g., '20 kg malai then price 500'), check mandi prices, or find wholesale buyers. Everything is translated and maintained in English.",
       spokenResponseTamil: "குறிஞ்சி குரல் உதவி மையம்: நீங்கள் தமிழில் '20 கிலோ மலைத்தேன் விலை 500' என்று கூறினால் அது ஆங்கிலத்தில் மொழிபெயர்க்கப்பட்டு சரக்கு பட்டியலில் சேர்க்கப்படும்.",
     };
   }
