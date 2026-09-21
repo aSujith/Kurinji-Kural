@@ -200,7 +200,7 @@ export class AgentOrchestrator {
             detectedIntent: "ADD_PRODUCT",
             agent: "PRODUCT",
             spokenResponseEnglish: `Success! ${newProduct.name} (${newProduct.quantity} ${newProduct.unit} at ₹${newProduct.expectedPrice}/${newProduct.unit}) has been translated and added to your English inventory.`,
-            spokenResponseTamil: `வெற்றி! ${newProduct.name} ஆங்கில சரக்கு பட்டியலில் வெற்றிகரமாக சேர்க்கப்பட்டது.`,
+            spokenResponseTamil: `வெற்றி! ${newProduct.quantity} கிலோ ${newProduct.name} உங்கள் ஆங்கில சரக்கு பட்டியலில் வெற்றிகரமாக சேர்க்கப்பட்டது.`,
             data: newProduct,
           };
         }
@@ -303,7 +303,7 @@ export class AgentOrchestrator {
         },
         payloadHash: uuidv4(),
         spokenSummaryEnglish: `I converted your request: Add ${quantity} kg of ${commodity.name} at ₹${price}/kg to your English inventory. Do you confirm? (Say Yes or tap Confirm)`,
-        spokenSummaryTamil: `உங்கள் குரல் பதிவு மொழிபெயர்க்கப்பட்டது: ${quantity} கிலோ ${commodity.name} (விலை ₹${price}/கிலோ) ஆங்கில சரக்கு பட்டியலில் சேர்க்கவா? (ஆம் என சொல்லவும் அல்லது Confirm அழுத்தவும்)`,
+        spokenSummaryTamil: `நான் புரிந்து கொண்டது: ${quantity} கிலோ ${commodity.name}, ஒரு கிலோ விலை ₹${price}. இதை உங்கள் சரக்கு பட்டியலில் சேர்க்கவா? ஆம் அல்லது வேண்டாம் என்று கூறவும்.`,
         status: "PENDING",
         idempotencyKey: uuidv4(),
         expiresAt: new Date(Date.now() + 600000).toISOString(),
