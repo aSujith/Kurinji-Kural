@@ -1,0 +1,16 @@
+{
+  "name": "kurinji-kural",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter api --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm --filter @kurinji/shared build && pnpm --filter api build && pnpm --filter web build",
+    "test": "node tests/integration_suite.mjs",
+    "start": "pnpm --filter api start"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
