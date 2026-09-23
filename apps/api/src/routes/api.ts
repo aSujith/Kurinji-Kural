@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { store } from "../data/store.js";
 import { orchestrator } from "../agents/orchestrator.js";
-import { Product, Enquiry, MatchResult } from "@kurinji/shared";
+import { Product, Enquiry, MatchResult, getDefaultCommodityImage } from "@kurinji/shared";
 import { v4 as uuidv4 } from "uuid";
 
 export const apiRouter = Router();
@@ -45,7 +45,7 @@ apiRouter.post("/products", (req, res) => {
     quality: quality || "Wild-Harvested",
     location: location || { village: "Chellapuram", district: "Nilgiris", state: "Tamil Nadu" },
     status: "ACTIVE",
-    images: ["https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500&auto=format&fit=crop&q=60"],
+    images: [getDefaultCommodityImage(name || "Wild Forest Honey")],
     version: 1,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -240,3 +240,42 @@ export interface VoiceTurnResponse {
   pendingAction?: PendingAction;
   data?: any;
 }
+
+
+export function getDefaultCommodityImage(commodityName: string): string {
+  const lower = (commodityName || "").toLowerCase();
+  if (lower.includes("honey") || lower.includes("தேன்") || lower.includes("thean")) {
+    return "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("turmeric") || lower.includes("மஞ்சள்") || lower.includes("manjal")) {
+    return "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("pepper") || lower.includes("மிளகு") || lower.includes("milagu")) {
+    return "https://images.unsplash.com/photo-1509358271058-acd22cc93898?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("foxtail") || lower.includes("thinai") || lower.includes("தினை")) {
+    return "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("little millet") || lower.includes("samai") || lower.includes("சாமை")) {
+    return "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("tamarind") || lower.includes("puli") || lower.includes("புளி")) {
+    return "https://images.unsplash.com/photo-1628556270448-4d4e4148e1b1?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("cardamom") || lower.includes("elakkai") || lower.includes("ஏலக்காய்")) {
+    return "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("haritaki") || lower.includes("kadukkai") || lower.includes("கடுக்காய்") || lower.includes("herbal")) {
+    return "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("bamboo") || lower.includes("basket") || lower.includes("கூடை") || lower.includes("craft")) {
+    return "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("amla") || lower.includes("nellikai") || lower.includes("நெல்லிக்காய்")) {
+    return "https://images.unsplash.com/photo-1514733670139-4d87a1941d55?w=600&auto=format&fit=crop&q=80";
+  }
+  if (lower.includes("wax") || lower.includes("மெழுகு")) {
+    return "https://images.unsplash.com/photo-1608248597359-5f2571ce9793?w=600&auto=format&fit=crop&q=80";
+  }
+  return "https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80";
+}

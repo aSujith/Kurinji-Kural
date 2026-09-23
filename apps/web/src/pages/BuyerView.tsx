@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Product, BuyerRequirement, api } from "../services/api";
-import { ShoppingBag, Search, Send, Sparkles, CheckCircle2 } from "lucide-react";
+import { ProductImage } from "../components/ProductImage";
+import { ShoppingBag, Search, Send, Sparkles, CheckCircle2, Tag, MapPin } from "lucide-react";
 
 interface BuyerProps {
   products: Product[];
@@ -8,6 +9,15 @@ interface BuyerProps {
   matches: any[];
   onRefresh: () => void;
 }
+
+const CATEGORY_NAMES: Record<string, string> = {
+  HONEY_BEE_PRODUCTS: "Honey & Bee Products",
+  SPICES_CONDIMENTS: "Spices & Condiments",
+  MILLETS_GRAINS: "Millets & Grains",
+  MEDICINAL_PLANTS: "Medicinal Herbs",
+  FOREST_PRODUCE: "Minor Forest Produce",
+  HANDICRAFTS: "Tribal Handicrafts",
+};
 
 export const BuyerView: React.FC<BuyerProps> = ({ products, requirements, matches, onRefresh }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -63,7 +73,7 @@ export const BuyerView: React.FC<BuyerProps> = ({ products, requirements, matche
         <div className="bg-gradient-to-r from-emerald-900 to-green-950 rounded-2xl p-6 text-white shadow-lg space-y-4">
           <div className="flex items-center space-x-2">
             <Sparkles className="w-5 h-5 text-emerald-300" />
-            <h3 className="font-bold text-lg">AI Matching Engine & Explainability (Stage 10)</h3>
+            <h3 className="font-bold text-lg">AI Matching Engine & Explainability</h3>
           </div>
           <p className="text-xs text-emerald-200">
             Automated compatibility scoring between available tribal inventory and wholesale buyer requirements.
@@ -74,14 +84,14 @@ export const BuyerView: React.FC<BuyerProps> = ({ products, requirements, matche
               <div key={m.id} className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/15 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-sm text-white">{m.productName}</span>
-                  <span className="text-xs font-black bg-emerald-400 text-emerald-950 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-black bg-emerald-400 text-emerald-950 px-2.5 py-0.5 rounded-full">
                     {m.overallScore}% Match
                   </span>
                 </div>
                 <p className="text-xs text-emerald-100 italic">"{m.explanationEnglish}"</p>
                 <div className="flex items-center justify-between text-xs text-emerald-300 pt-2 border-t border-white/10">
                   <span>Buyer: {m.buyerName}</span>
-                  <span>Producer Score: 95%</span>
+                  <span>Category Fit: 100%</span>
                 </div>
               </div>
             ))}
@@ -93,32 +103,65 @@ export const BuyerView: React.FC<BuyerProps> = ({ products, requirements, matche
       <div>
         <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center space-x-2">
           <ShoppingBag className="w-5 h-5 text-green-700" />
-          <span>Available Tribal Produce ({products.length})</span>
+          <span>Available Tribal Produce ({products.length} Batches)</span>
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((item) => (
             <div
               key={item.id}
               className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
             >
               <div>
-                <img
-                  src={item.images[0] || "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500"}
+                <ProductImage
+                  src={item.images?.[0]}
                   alt={item.name}
-                  className="w-full h-44 object-cover"
+                  name={item.name}
+                  nameTamil={item.nameTamil}
+                  category={item.category}
+                  className="w-full h-48 object-cover"
                 />
-                <div className="p-4 space-y-2">
-                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-800">
-                    {item.quality}
-                  </span>
-                  <h3 className="font-bold text-stone-900 text-base">{item.name}</h3>
-                  <p className="text-xs text-stone-500">Collected by: {item.producerName}</p>
-                  <p className="text-xs text-stone-500">Region: {item.location.district}, {item.location.state}</p>
+
+                <div className="p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-800">
+                      {item.quality || "Organic"}
+                    </span>
+                    <span className="text-[11px] text-stone-400 font-mono">ID: {item.id}</span>
+                  </div>
+
+                  <div>
+                    <h3 className="font-extrabold text-stone-900 text-lg leading-tight">{item.name}</h3>
+                    {item.nameTamil && (
+                      <div className="inline-flex items-center space-x-1 bg-green-50 text-green-800 border border-green-200 px-2 py-0.5 rounded text-xs font-semibold mt-1">
+                        <span>🌱</span>
+                        <span>{item.nameTamil}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-1 text-xs text-stone-500">
+                    <Tag className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+                    <span className="truncate">{CATEGORY_NAMES[item.category] || item.category}</span>
+                  </div>
+
+                  <p className="text-xs text-stone-600">Producer: <strong className="text-stone-800">{item.producerName}</strong></p>
 
                   <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-sm">
-                    <span className="text-stone-700 font-bold">{item.quantity} {item.unit} available</span>
-                    <span className="text-green-700 font-extrabold text-base">₹{item.expectedPrice}/{item.unit}</span>
+                    <div>
+                      <span className="text-[11px] text-stone-400 block font-medium">Batch Stock</span>
+                      <span className="font-extrabold text-stone-800">{item.quantity} {item.unit}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[11px] text-stone-400 block font-medium">Wholesale Rate</span>
+                      <span className="font-black text-green-700 text-lg">₹{item.expectedPrice}</span>
+                      <span className="text-xs text-stone-500 font-medium">/{item.unit}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-stone-500 flex items-center space-x-1 pt-1 border-t border-stone-50">
+                    <MapPin className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+                    <span>Origin: {item.location?.district}, {item.location?.state}</span>
                   </div>
                 </div>
               </div>
@@ -129,7 +172,7 @@ export const BuyerView: React.FC<BuyerProps> = ({ products, requirements, matche
                     setSelectedProduct(item);
                     setFormData({ ...formData, quantity: item.quantity, offeredPrice: item.expectedPrice });
                   }}
-                  className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-sm"
+                  className="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm active:scale-95"
                 >
                   Send Procurement Enquiry
                 </button>
@@ -156,7 +199,10 @@ export const BuyerView: React.FC<BuyerProps> = ({ products, requirements, matche
                 <h3 className="font-bold text-lg text-stone-900">
                   Procurement Enquiry for {selectedProduct.name}
                 </h3>
-                <form onSubmit={handleSendEnquiry} className="space-y-3">
+                <p className="text-xs text-stone-500">
+                  Origin: {selectedProduct.location?.village}, {selectedProduct.location?.district}
+                </p>
+                <form onSubmit={handleSendEnquiry} className="space-y-3 pt-2">
                   <div>
                     <label className="text-xs font-semibold text-stone-600 block mb-1">Buyer Organization</label>
                     <input

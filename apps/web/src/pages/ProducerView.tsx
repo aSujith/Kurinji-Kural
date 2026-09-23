@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Product, Enquiry, api } from "../services/api";
-import { Plus, Sparkles, CheckCircle, Package, PhoneCall, ShieldCheck, MapPin } from "lucide-react";
+import { ProductImage } from "../components/ProductImage";
+import { Plus, Sparkles, CheckCircle, Package, PhoneCall, ShieldCheck, MapPin, Tag } from "lucide-react";
 
 interface ProducerProps {
   products: Product[];
@@ -9,11 +10,21 @@ interface ProducerProps {
   onOpenVoice: () => void;
 }
 
+const CATEGORY_NAMES: Record<string, string> = {
+  HONEY_BEE_PRODUCTS: "Honey & Bee Products (தேன் பொருட்கள்)",
+  SPICES_CONDIMENTS: "Spices & Condiments (மலை வாசனை பொருட்கள்)",
+  MILLETS_GRAINS: "Millets & Traditional Grains (பாரம்பரிய சிறுதானியங்கள்)",
+  MEDICINAL_PLANTS: "Medicinal Herbs (நாட்டு மூலிகைகள்)",
+  FOREST_PRODUCE: "Minor Forest Produce (சிறு வனப்பொருட்கள்)",
+  HANDICRAFTS: "Tribal Handicrafts (பாரம்பரிய கைவினைப் பொருட்கள்)",
+};
+
 export const ProducerView: React.FC<ProducerProps> = ({ products, enquiries, onRefresh, onOpenVoice }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [marketingPitch, setMarketingPitch] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "Wild Rock Honey",
+    nameTamil: "இயற்கை கொம்புத்தேன்",
     category: "HONEY_BEE_PRODUCTS",
     quantity: 30,
     unit: "kg",
@@ -25,7 +36,7 @@ export const ProducerView: React.FC<ProducerProps> = ({ products, enquiries, onR
     e.preventDefault();
     await api.createProduct({
       ...formData,
-      producerName: "Maruthan (Nilgiris)",
+      producerName: "Maruthan (Nilgiris Tribal Collective)",
       location: { village: "Chellapuram", district: "Nilgiris", state: "Tamil Nadu" },
     });
     setShowAddModal(false);
@@ -49,13 +60,13 @@ export const ProducerView: React.FC<ProducerProps> = ({ products, enquiries, onR
         <div className="space-y-2">
           <div className="inline-flex items-center space-x-2 bg-green-700/60 px-3 py-1 rounded-full text-xs font-semibold text-green-200 border border-green-600">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Tribal Producer Portal (Nilgiris & Dindigul Collectives)</span>
+            <span>Tribal Producer Portal (Tamil Nadu Forest Collectives)</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             English Produce Inventory
           </h1>
           <p className="text-sm text-green-200 max-w-xl">
-            Producers speak naturally in Tamil or English. Our multi-agent system extracts commodities, units, and rates, converts them to English, and safely manages this inventory.
+            Producers speak naturally in Tamil. Our multi-agent system extracts commodities, units, and rates, converts them to English, and manages this live inventory.
           </p>
         </div>
 
@@ -64,7 +75,7 @@ export const ProducerView: React.FC<ProducerProps> = ({ products, enquiries, onR
             onClick={onOpenVoice}
             className="bg-white hover:bg-green-50 text-green-900 font-bold px-5 py-3 rounded-xl shadow-lg transition flex items-center space-x-2 active:scale-95"
           >
-            <span>🎤 Add via Voice (Tamil/English)</span>
+            <span>🎤 Add via Voice (Tamil Speech)</span>
           </button>
           <button
             onClick={() => setShowAddModal(true)}
@@ -105,56 +116,72 @@ export const ProducerView: React.FC<ProducerProps> = ({ products, enquiries, onR
           <span className="text-xs text-stone-500 font-semibold uppercase">Real-Time Inventory</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((item) => (
             <div
               key={item.id}
               className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
             >
               <div>
-                <img
-                  src={item.images[0] || "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500"}
+                <ProductImage
+                  src={item.images?.[0]}
                   alt={item.name}
-                  className="w-full h-44 object-cover"
+                  name={item.name}
+                  nameTamil={item.nameTamil}
+                  category={item.category}
+                  className="w-full h-48 object-cover"
                 />
-                <div className="p-4 space-y-2">
+
+                <div className="p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-800">
-                      {item.quality}
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-800">
+                      {item.quality || "Organic"}
                     </span>
-                    <span className="text-xs text-stone-400">ID: {item.id}</span>
+                    <span className="text-[11px] text-stone-400 font-mono">ID: {item.id}</span>
                   </div>
-                  <h3 className="font-bold text-stone-900 text-base">{item.name}</h3>
-                  {item.nameTamil && (
-                    <p className="text-xs text-stone-500 font-medium">Tamil Input: {item.nameTamil}</p>
-                  )}
+
+                  <div>
+                    <h3 className="font-extrabold text-stone-900 text-lg leading-tight">{item.name}</h3>
+                    {item.nameTamil && (
+                      <div className="inline-flex items-center space-x-1 bg-green-50 text-green-800 border border-green-200 px-2 py-0.5 rounded text-xs font-semibold mt-1">
+                        <span>🌱</span>
+                        <span>{item.nameTamil}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-1 text-xs text-stone-500">
+                    <Tag className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+                    <span className="truncate">{CATEGORY_NAMES[item.category] || item.category}</span>
+                  </div>
 
                   <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-sm">
                     <div>
-                      <span className="text-xs text-stone-400 block">Available Quantity</span>
-                      <span className="font-bold text-stone-800">{item.quantity} {item.unit}</span>
+                      <span className="text-[11px] text-stone-400 block font-medium">Available Quantity</span>
+                      <span className="font-extrabold text-stone-800">{item.quantity} {item.unit}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs text-stone-400 block">Expected Price</span>
-                      <span className="font-bold text-green-700 text-base">₹{item.expectedPrice}/{item.unit}</span>
+                      <span className="text-[11px] text-stone-400 block font-medium">Expected Price</span>
+                      <span className="font-black text-green-700 text-lg">₹{item.expectedPrice}</span>
+                      <span className="text-xs text-stone-500 font-medium">/{item.unit}</span>
                     </div>
                   </div>
 
-                  <div className="text-xs text-stone-500 flex items-center space-x-1 pt-1">
-                    <MapPin className="w-3.5 h-3.5 text-stone-400" />
-                    <span>{item.location.village}, {item.location.district}</span>
+                  <div className="text-xs text-stone-500 flex items-center space-x-1 pt-1 border-t border-stone-50">
+                    <MapPin className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+                    <span>{item.location?.village}, {item.location?.district}</span>
                   </div>
                 </div>
               </div>
 
               <div className="p-3 bg-stone-50 border-t border-stone-100 flex items-center justify-between">
-                <span className="text-xs text-stone-500 font-medium">{item.producerName}</span>
+                <span className="text-xs text-stone-600 font-medium truncate max-w-[150px]">{item.producerName}</span>
                 <button
                   onClick={() => handleGeneratePitch(item)}
-                  className="text-xs font-semibold text-purple-700 hover:text-purple-900 flex items-center space-x-1"
+                  className="text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center space-x-1 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Pitch</span>
+                  <span>AI Pitch</span>
                 </button>
               </div>
             </div>
@@ -221,7 +248,7 @@ export const ProducerView: React.FC<ProducerProps> = ({ products, enquiries, onR
             <h3 className="font-bold text-lg text-stone-900">Add Inventory Item (English)</h3>
             <form onSubmit={handleAddDirect} className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-stone-600 block mb-1">Produce Name</label>
+                <label className="text-xs font-semibold text-stone-600 block mb-1">Produce English Name</label>
                 <input
                   type="text"
                   value={formData.name}
@@ -229,6 +256,30 @@ export const ProducerView: React.FC<ProducerProps> = ({ products, enquiries, onR
                   className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm"
                   required
                 />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-stone-600 block mb-1">Tamil Traditional Name</label>
+                <input
+                  type="text"
+                  value={formData.nameTamil}
+                  onChange={(e) => setFormData({ ...formData, nameTamil: e.target.value })}
+                  className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-stone-600 block mb-1">Category</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="HONEY_BEE_PRODUCTS">Honey & Bee Products</option>
+                  <option value="SPICES_CONDIMENTS">Spices & Condiments</option>
+                  <option value="MILLETS_GRAINS">Millets & Traditional Grains</option>
+                  <option value="MEDICINAL_PLANTS">Medicinal Herbs</option>
+                  <option value="FOREST_PRODUCE">Minor Forest Produce</option>
+                  <option value="HANDICRAFTS">Tribal Handicrafts</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -251,6 +302,7 @@ export const ProducerView: React.FC<ProducerProps> = ({ products, enquiries, onR
                     <option value="kg">kg</option>
                     <option value="quintal">quintal</option>
                     <option value="litre">litre</option>
+                    <option value="piece">piece</option>
                   </select>
                 </div>
               </div>

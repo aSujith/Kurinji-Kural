@@ -1,4 +1,5 @@
 import {
+  getDefaultCommodityImage,
   VoiceTurnRequest,
   VoiceTurnResponse,
   PendingAction,
@@ -176,7 +177,7 @@ export class AgentOrchestrator {
             },
             status: "ACTIVE",
             images: [
-              "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500&auto=format&fit=crop&q=60",
+              payload.images?.[0] || getDefaultCommodityImage(payload.name),
             ],
             version: 1,
             createdAt: new Date().toISOString(),
